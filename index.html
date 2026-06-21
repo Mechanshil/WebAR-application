@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>AR.js · 3D Model</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <!-- AR.js with A-Frame support -->
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      background: #000;
+    }
+
+    /* ── HUD overlay ─────────────────────────────── */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    #top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+    }
+
+    #title {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #5a5a7a;
+    }
+
+    #status {
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      color: #3a3a58;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ff4444;
+      transition: background 0.4s;
+    }
+
+    #status-dot.found {
+      background: #44ff88;
+    }
+
+    /* ── Marker guide ────────────────────────────── */
+    #guide {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 32px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.65), transparent);
+      padding-top: 40px;
+    }
+
+    #guide-box {
+      width: 140px;
+      height: 140px;
+      border: 2px solid rgba(90, 100, 255, 0.5);
+      border-radius: 8px;
+      position: relative;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    #guide-box::before,
+    #guide-box::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: #5a64ff;
+      border-style: solid;
+    }
+
+    #guide-box::before {
+      top: -2px;
+      left: -2px;
+      border-width: 2px 0 0 2px;
+      border-radius: 4px 0 0 0;
+    }
+
+    #guide-box::after {
+      bottom: -2px;
+      right: -2px;
+      border-width: 0 2px 2px 0;
+      border-radius: 0 0 4px 0;
+    }
+
+    #guide-label {
+      margin-top: 14px;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #5a5a7a;
+    }
+
+    #guide-sub {
+      margin-top: 6px;
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      color: #3a3a58;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.6;
+        transform: scale(0.96);
+      }
+    }
+
+    /* Hide A-Frame default UI */
+    .a-enter-vr-button,
+    .a-orientation-modal {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── HUD ──────────────────────────────────────── -->
+  <div id="hud">
+    <div id="top-bar">
+      <div id="title">AR.js · 3D Renderer</div>
+      <div id="status">
+        <div id="status-dot"></div>
+        <span id="status-text">Searching for marker…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Marker guide ─────────────────────────────── -->
+  <div id="guide">
+    <div id="guide-box"></div>
+    <div id="guide-label">Point camera at HIRO marker</div>
+    <div id="guide-sub">Print or display on screen → <strong style="color:#5a64ff">bit.ly/hiro-marker</strong></div>
+  </div>
+
+  <!-- ── A-Frame + AR.js Scene ────────────────────── -->
+  <a-scene embedded arjs="sourceType: webcam;
+          debugUIEnabled: false;
+          detectionMode: mono_and_matrix;
+          matrixCodeType: 3x3;" renderer="antialias: true; logarithmicDepthBuffer: true;" vr-mode-ui="enabled: false">
+
+    <!-- ── Assets / Mixins ──────────────────────── -->
+    <a-assets>
+      <a-mixin id="main-mat" material="color: #5a64ff; metalness: 0.3; roughness: 0.35; shader: standard">
+      </a-mixin>
+    </a-assets>
+
+    <!-- ── Marker: HIRO ─────────────────────────── -->
+    <!--
+      Everything inside <a-marker> only appears
+      when the HIRO marker is detected by the camera.
+      AR.js handles all the pose estimation & matrix math.
+    -->
+    <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+
+      <!-- Auto-rotate rig -->
+      <a-entity id="cube-rig" animation__spin="property: rotation;
+                         from: 0 0 0;
+                         to:   0 360 0;
+                         loop: true;
+                         dur:  5000;
+                         easing: linear">
+
+        <!-- Main cube -->
+        <a-box position="0 0.75 0" width="1.2" height="1.2" depth="1.2"
+          material="color: #5a64ff; metalness: 0.3; roughness: 0.35; shader: standard"
+          shadow="cast: true; receive: false" animation__bob="property: position;
+                          from: 0 0.75 0;
+                          to:   0 0.95 0;
+                          loop: true;
+                          dur:  1800;
+                          dir:  alternate;
+                          easing: easeInOutSine"></a-box>
+
+        <!-- Wireframe overlay -->
+        <a-box position="0 0.75 0" width="1.22" height="1.22" depth="1.22"
+          material="color: #8888ff; wireframe: true; opacity: 0.1; transparent: true; shader: flat" animation__bob="property: position;
+                          from: 0 0.75 0;
+                          to:   0 0.95 0;
+                          loop: true;
+                          dur:  1800;
+                          dir:  alternate;
+                          easing: easeInOutSine"></a-box>
+
+      </a-entity>
+
+      <!-- Ground shadow plane (sits on the marker) -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="3" height="3"
+        material="color: #000000; opacity: 0.25; transparent: true; shader: flat" shadow="receive: true"></a-plane>
+
+      <!-- Subtle ring glow under the cube -->
+      <a-torus position="0 0.01 0" rotation="-90 0 0" radius="0.7" radius-tubular="0.01"
+        material="color: #5a64ff; emissive: #5a64ff; emissiveIntensity: 0.6; shader: flat; opacity: 0.5; transparent: true"
+        animation__pulse="property: material.opacity;
+                          from: 0.5;
+                          to:   0.1;
+                          loop: true;
+                          dur:  1800;
+                          dir:  alternate;
+                          easing: easeInOutSine"></a-torus>
+
+      <!-- Lighting (local to marker so it moves with it) -->
+      <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
+      <a-light type="point" color="#ffeedd" intensity="1.6" distance="6" position="2 3 2" cast-shadow="true"></a-light>
+      <a-light type="point" color="#4466ff" intensity="0.7" distance="6" position="-2 1 -2"></a-light>
+      <a-light type="directional" color="#aaaaff" intensity="0.3" position="0 4 -2"></a-light>
+
+    </a-marker>
+
+    <!-- ── Static camera (AR.js controls this) ──── -->
+    <a-entity camera></a-entity>
+
+  </a-scene>
+
+  <!-- ── Marker detection feedback ─────────────────── -->
+  <script>
+    const marker = document.querySelector('#hiro-marker');
+    const dot = document.getElementById('status-dot');
+    const statusTxt = document.getElementById('status-text');
+    const guide = document.getElementById('guide');
+
+    marker.addEventListener('markerFound', () => {
+      dot.classList.add('found');
+      statusTxt.textContent = 'Marker detected ✓';
+      guide.style.opacity = '0';
+      guide.style.transition = 'opacity 0.5s';
+    });
+
+    marker.addEventListener('markerLost', () => {
+      dot.classList.remove('found');
+      statusTxt.textContent = 'Searching for marker…';
+      guide.style.opacity = '1';
+    });
+  </script>
+
+</body>
+
+</html>
